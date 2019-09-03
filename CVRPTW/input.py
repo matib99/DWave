@@ -10,7 +10,6 @@ import numpy as np
 # format:
 # nodes.csv: id|enu_east|enu_north|enu_up|lla_longitude|lla_latitude|lla_altitude
 # edges.csv: id_1|id_2|distance|time_0|time_1|...|time_23
-# TODO: lokalizacje magazynów, paczkomatów itp
 
 GRAPH_PATH = '../tests/bruxelles'
 DIST_TO_TIME = float(1) / float(444)
@@ -76,7 +75,6 @@ def read_test(path):
         costs[i][j] = float(cost_line[0])
         # nie wiem czemu tutaj było += zamiast = na dole ???
         time_costs[i][j] = round_to_time_block(float(cost_line[1]), max_time, time_blocks_num)
-
     sources = [i for i in range(magazines_num)]
     dests = [i for i in range(magazines_num, nodes_num)]
 
@@ -97,20 +95,42 @@ def read_test(path):
     print("time windows:")
     print(time_windows)
 
-    problem = CVRPTWProblem(sources, costs, time_costs, capacities, dests, weights, time_windows, vehicles_num, time_blocks_num)
+    problem = CVRPTWProblem(sources, costs, time_costs, capacities, dests, weights, time_windows,
+                            vehicles_num, 2 *time_blocks_num)
     return problem
 
 
 # testowanie...
+
+penalty_const = 1000.
+reward_const = -300.
+order_const_m = 0.
+order_const_r = 200.
+capacity_const = 10.
+time_windows_const = 500.
+
 prb = read_test('test.test')
 # te parametry trzeba dodać i być może zmienić coś w cvrptwproblem bo się generują błędne rozwiązania
-qdict = prb.get_cvrptw_qubo(1000., 100., 1000., 5., 5.).dict
+# qdict = prb.get_cvrptw_qubo(1000., 100., 1000., 5., 5.).dict
+qdict = prb.get_cvrptw_qubo(penalty_const, reward_const, order_const_m, order_const_r, capacity_const,
+                            time_windows_const).dict
+
+print("qubo")
+
+for key in qdict.keys():
+    if qdict[key] < 0.5*penalty_const:
+        print(key, end='')
+        print(" - ", end='')
+        print(qdict[key])
 
 print("annealing")
 solver = neal.SimulatedAnnealingSampler()
 response = solver.sample_qubo(qdict)
 
 for sample in response:
+    for key in sample:
+        if sample[key] == 1:
+            print(key)
     solution = CVRPTWSolution(prb, sample)
     print(solution.check())
     solution.description()
