@@ -13,7 +13,7 @@ class CVRPTWSolution:
 
             # Decoding solution from qubo sample
             for (v, c, t) in sample:
-                if sample[(v, c, t)] == 1:
+                if sample[(v, c, t)] == 1 and c != 0:
                     result[v].append((c, t))
 
             for v in range(self.problem.vehicles_num):
