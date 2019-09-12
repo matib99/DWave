@@ -29,6 +29,10 @@ class Qubo:
         self.add((y, z), (-2) * const)
         self.add((z, z), 3 * const)
 
+    def set(self, field, value):
+        self.create_not_exist_field(field)
+        self.dict[field] = value
+
     def add(self, field, value):
         self.create_not_exist_field(field)
         self.dict[field] += value
@@ -41,5 +45,14 @@ class Qubo:
             self.dict[field] += qubo.dict[field] * const2
         #self.satisfied_energy += qubo.satisfied_energy
 
+    def bound(self, min, max):
+        for field in self.dict:
+            if self.dict[field] > max:
+                self.dict[field] = max
+            if self.dict[field] < min:
+                self.dict[field] = min
+
     def get_dict(self):
         return self.dict
+
+

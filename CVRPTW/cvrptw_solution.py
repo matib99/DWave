@@ -31,27 +31,48 @@ class CVRPTWSolution:
     # Checks capacity and visiting.
     def check(self):
         capacities = self.problem.capacities
+        time_windows = self.problem.time_windows
         weights = self.problem.weights
         solution = self.solution
         vehicle_num = 0
 
-        for vehicle_dests in solution:
+        '''for vehicle_dests in solution:
             cap = capacities[vehicle_num]
             for (dest, _) in vehicle_dests:
                 cap -= weights[dest]
             if cap < 0:
-                return False
+                print("capacities")
+                return False'''
+        result = True
+
+        for v in range(self.problem.vehicles_num):
+            cap = capacities[v]
+            weight = 0
+            prev = -42
+            for (dest, t) in solution[v]:
+                if dest not in self.problem.dests:
+                    continue
+                if (t < time_windows[dest][0] or t > time_windows[dest][1]) and prev == dest:
+                    print('Destination no. ', dest, 'not visited at time(visited: ', t, 'time window: ',
+                          time_windows[dest], ')')
+                    result = False
+                weight += weights[dest]
+                prev = dest
+            if cap < weight:
+                print("Vehicle no." + str(v) + " overloaded (weight: " + str(weight) + "kg, capacity: " + str(cap)+")")
+                result = False
 
         dests = self.problem.dests
         answer_dests = [dest for vehicle_dests in solution for (dest, _) in vehicle_dests[1:-1]]
+        answer_dests = list(dict.fromkeys(answer_dests))
         if len(dests) != len(answer_dests):
-            return False
+            result = False
 
         lists_cmp = set(dests) & set(answer_dests)
         if lists_cmp == len(dests):
-            return False
+            result = False
 
-        return True
+        return result
 
     def total_cost(self):
         costs = self.problem.costs
@@ -88,11 +109,13 @@ class CVRPTWSolution:
         costs = self.problem.costs
         time_costs = self.problem.time_costs
         solution = self.solution
-
+        weights = self.problem.weights
+        total_cost = 0
         vehicle_num = 0
         for vehicle_dests in solution:
             time = 0
             cost = 0
+            weight = 0
 
             print('Vehicle number ', vehicle_num, ' : ')
 
@@ -100,14 +123,15 @@ class CVRPTWSolution:
                 print('    Vehicle is not used.')
                 continue
 
-            print('    Startpoint : ', vehicle_dests[0])
+            print('    Startpoint : ', vehicle_dests[0][0])
             dests_num = 1
             prev = vehicle_dests[0][0]
             for (dest, t) in vehicle_dests[1:len(vehicle_dests) - 1]:
 
                 cost += costs[prev][dest]  # [t]
+                weight += weights[dest]
                 # time += time_costs[prev][dest]  # [t]
-                print('    Destination number ', dests_num, ' : ', dest, ', reached at time ', t, '.')
+                print('     ->Destination number ', dests_num, ' : ', dest, ', reached at time ', t, '.')
                 dests_num += 1
                 prev = dest
 
@@ -118,5 +142,11 @@ class CVRPTWSolution:
 
             print('')
             print('    Total cost of vehicle : ', cost)
-
+            print('    Total weight of vehicle : ', weight)
+            print('    Capacity of vehicle : ', self.problem.capacities[vehicle_num])
+            total_cost += cost
             vehicle_num += 1
+
+        print('')
+        print('')
+        print('Total cost of all vehicles : ', total_cost)

@@ -16,13 +16,13 @@ class CVRPTWSolver:
         self.problem = problem
 
     def solve(self, only_one_const, order_const, capacity_const,
-            solver_type = 'qbsolv', num_reads = 50):
+            solver_type = 'qbsolv', num_reads=50):
         pass
 
 
 class FullQuboSolver(CVRPTWSolver):
     def solve(self, penalty_const, order_const_m, order_const_r, capacity_const, time_windows_const,
-            solver_type = 'qbsolv', num_reads = 50):
+            solver_type = 'qbsolv', num_reads=50):
         dests = len(self.problem.dests)
         vehicles = len(self.problem.capacities)
 
