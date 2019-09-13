@@ -1,0 +1,7 @@
+-2) number of time blocks
+-1) number of vechicles
+0)  capacities of vechicles
+1)  m - number of magazines
+2)  n - number of deliveries
+3)  n lines - description of deliveries : weigths, start and end of time windows
+4)  costs and time_costs : (m + n)^2 lines 
