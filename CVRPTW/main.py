@@ -1,24 +1,23 @@
 from input import *
 from dwave.system.samplers import DWaveSampler
+from DWaveSolvers import hybrid_solver
+import hybrid
 
 from cvrptw_problem import *
 # testowanie...
 
-sapi_token = 'DEV-cba9fa3ac818295889696ec5ac1e2ac0d0e7cb86'
+DWAVE_API_TOKEN = 'token'
 
 endpoint = 'https://cloud.dwavesys.com/sapi'
 
-
-prb = read_test('tests/small/small-4.test')
+prb = read_test('tests/medium/medium-5.test')
+# prb = read_full_test('tests/compare_tests/medium1-1.test', 25, 'tests/bruxelles')
 
 penalty_const = 10000.
-reward_const = -1000.
-capacity_const = 10.
+reward_const = -5000.
+capacity_const = 100.
 time_windows_const = -200.
 
-
-# te parametry trzeba dodać i być może zmienić coś w cvrptwproblem bo się generują błędne rozwiązania
-# qdict = prb.get_cvrptw_qubo(1000., 100., 1000., 5., 5.).dict
 
 print("qubo generation")
 
@@ -34,14 +33,12 @@ if printqubo:
             print(" - ", end='')
             print(qdict[key])
 
-
 print("annealing")
 
-solver = QBSolv()
+solver = hybrid_solver()
 # solver = neal.SimulatedAnnealingSampler()
-dwave_sampler = DWaveSampler(token=sapi_token, endpoint=endpoint)
-response = solver.sample_qubo(qdict, solver=dwave_sampler, num_reads=1, solver_limit=2000, auto_scale=True)
-
+dwave_sampler = DWaveSampler(token=DWAVE_API_TOKEN, endpoint=endpoint)
+response = solver.sample_qubo(qdict)
 
 for sample in response:
     # for key in sample:
@@ -54,4 +51,3 @@ for sample in response:
     print(solution.check())
     print('energy: ', energy(qdict, sample, False))
     print()
-# solution = CVRPTWSolution(prb, response)

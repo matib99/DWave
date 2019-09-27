@@ -1,10 +1,11 @@
 import operator
 
+
 class CVRPTWSolution:
     def __init__(self, problem, sample, solution=None):
         self.problem = problem
 
-        if solution!=None:
+        if solution is not None:
             self.solution = solution
         else:
             result = list()
@@ -18,7 +19,6 @@ class CVRPTWSolution:
 
             for v in range(self.problem.vehicles_num):
                 result[v].sort(key=operator.itemgetter(1))
-
 
             # Adding first and last magazine.
             for l in result:
@@ -34,7 +34,6 @@ class CVRPTWSolution:
         time_windows = self.problem.time_windows
         weights = self.problem.weights
         solution = self.solution
-        vehicle_num = 0
 
         '''for vehicle_dests in solution:
             cap = capacities[vehicle_num]
@@ -107,13 +106,11 @@ class CVRPTWSolution:
 
     def description(self):
         costs = self.problem.costs
-        time_costs = self.problem.time_costs
         solution = self.solution
         weights = self.problem.weights
         total_cost = 0
         vehicle_num = 0
         for vehicle_dests in solution:
-            time = 0
             cost = 0
             weight = 0
 
@@ -130,14 +127,12 @@ class CVRPTWSolution:
 
                 cost += costs[prev][dest]  # [t]
                 weight += weights[dest]
-                # time += time_costs[prev][dest]  # [t]
                 print('     ->Destination number ', dests_num, ' : ', dest, ', reached at time ', t, '.')
                 dests_num += 1
                 prev = dest
 
             endpoint = vehicle_dests[len(vehicle_dests) - 1]
             cost += costs[prev][endpoint[0]]  # [t]
-            # time += time_costs[prev][endpoint]  # [t]
             print('    Endpoint : ', endpoint[0], ', reached at time ', endpoint[1], '.')
 
             print('')

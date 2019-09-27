@@ -7,15 +7,17 @@ import hybrid
 import dimod
 import neal
 
+
 # Creates hybrid solver.
 def hybrid_solver():
-    workflow = hybrid.LoopUntilNoImprovement(
+    workflow = hybrid.Loop(
         hybrid.RacingBranches(
         hybrid.InterruptableTabuSampler(),
-        hybrid.EnergyImpactDecomposer(size=20)
+        hybrid.EnergyImpactDecomposer(size=30, rolling=True, rolling_history=0.25)
         | hybrid.QPUSubproblemAutoEmbeddingSampler()
-        | hybrid.SplatComposer()) | hybrid.ArgMin(), convergence=3)
+        | hybrid.SplatComposer()) | hybrid.ArgMin(), convergence=1)
     return hybrid.HybridSampler(workflow)
+
 
 def get_solver(solver_type):
     solver = None
@@ -28,6 +30,7 @@ def get_solver(solver_type):
     if solver_type == 'qbsolv':
         solver = QBSolv()
     return solver
+
 
 # Solves qubo on qpu.
 def solve_qubo(qubo, solver_type = 'qbsolv', limit = 1, num_reads = 50):
@@ -43,4 +46,4 @@ def solve_qubo(qubo, solver_type = 'qbsolv', limit = 1, num_reads = 50):
     else:
         response = sampler.sample_qubo(qubo.dict, num_reads = num_reads)
     return list(response)[:limit]
-    
+

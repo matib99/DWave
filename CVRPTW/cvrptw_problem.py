@@ -1,12 +1,8 @@
 from qubo_helper import Qubo
-from itertools import combinations, permutations, combinations_with_replacement
+from itertools import combinations, permutations
 
 
-# VRP problem with multi-source
 class CVRPTWProblem:
-
-    TIME_WINDOW_RADIUS = 10
-    TIME_BLOCK = 10
 
     def __init__(self, sources, costs, time_costs, capacities, dests, weights, time_windows, vehicles_num, time_blocks_num):
 
@@ -23,7 +19,6 @@ class CVRPTWProblem:
         self.max_cost = max(costs[a][b] for (a, b) in combinations(dests + sources, 2)) * 1.25
         self.min_cost = min(costs[a][b] for (a, b) in combinations(dests + sources, 2))
         self.zero_edges = []
-        print('min : ', self.min_cost)
         # Merging all sources into one source.
         source = 0
         weights[source] = 0
@@ -50,14 +45,16 @@ class CVRPTWProblem:
             out_nearest_sources[dest] = out_nearest
         time_costs[source][source] = 0
 
-        for (a, b, c) in permutations(dests, 3):
-            if time_costs[a][b] + time_costs[b][c] == time_costs[a][c]:
-                print("trójka: ", (a, b, c))
-                self.zero_edges.append((a, c))
         self.in_nearest_sources = in_nearest_sources
         self.out_nearest_sources = out_nearest_sources
 
+        # edges to 'delete later'
+        for (a, b, c) in permutations(dests, 3):
+            if time_costs[a][b] + time_costs[b][c] == time_costs[a][c]:
+                self.zero_edges.append((a, c))
+
     def get_capacity_qubo(self, capacity_const):
+        tw = self.time_windows
         dests = self.dests
         weights = self.weights
         cap_qubo = Qubo()
@@ -65,9 +62,10 @@ class CVRPTWProblem:
             capacity = self.capacities[vehicle]
             for (d1, d2) in combinations(dests, 2):
                 for (t1, t2) in combinations(range(self.time_blocks_num), 2):
-                    index = ((vehicle, d1, t1), (vehicle, d2, t2))
-                    cost = capacity_const * weights[d1] * weights[d2] / capacity**2
-                    cap_qubo.add(index, cost)
+                    if (tw[d1][0] < t1 < tw[d1][1]) and (tw[d2][0] < t2 < tw[d2][1]):
+                        index = ((vehicle, d1, t1), (vehicle, d2, t2))
+                        cost = capacity_const * weights[d1] * weights[d2] / capacity**2
+                        cap_qubo.add(index, cost)
         return cap_qubo
 
     def get_time_windows_qubo(self, time_windows_const, penalty_const):
@@ -81,11 +79,16 @@ class CVRPTWProblem:
                     index1 = ((v, d, t1), (v, d, t1))
                     index2 = ((v, d, t2), (v, d, t2))
 
+                    # we don't want vehicles to be late
                     if t1 > tw[1]:
                         tw_qubo.add(index1, penalty_const)
                     if t2 > tw[1]:
                         tw_qubo.add(index2, penalty_const)
 
+                    # vehicle can 'visit' certain destination only once. But it can wait for the time window to start
+                    # waiting is represented by 2 visits: one before the time window and one at the beginning of it
+                    # (because there is no point in waiting any longer)
+                    # this should be the only exception in which vehicle can visit twice the same destination
                     if t1 < t2:
                         if t2 != tw[0]:
                             tw_qubo.add(index, penalty_const)
@@ -104,14 +107,11 @@ class CVRPTWProblem:
                                 for v in range(self.vehicles_num):
                                     index = ((v, d, t), (v, d2, t2))
                                     index_m = ((v, d2, t2), (v, d, t))
-                                    # anti "teleport" penalty
+                                    # if vehicle is at the destination before time window it should wait
                                     tw_qubo.add(index, penalty_const)
                                     tw_qubo.add(index_m, penalty_const)
-
         return tw_qubo
 
-    # z tą funkcją są pewne problemy, ponieważ siędodają zmienne od źródła a one nieco psują, więc na
-    # razie je usunę
     def get_sources_qubo(self, cost_const, penalty_const, reward_const, time_windows_const):
         src_qubo = Qubo()
         dests = self.dests
@@ -124,7 +124,6 @@ class CVRPTWProblem:
                 out_time = self.time_costs[dest][source]  # [t]
                 for v in range(self.vehicles_num):
                     in_index = ((v, source, 0), (v, dest, t))
-                    # poprawione outdest, żeby mół przyjeżdżać kiedy chce
                     out_index = ((v, dest, t), (v, source, t + out_time))
                     dest_index = ((v, dest, t), (v, dest, t))
 
@@ -136,7 +135,6 @@ class CVRPTWProblem:
                         if t == in_time:
                             cost = (costs[source][dest] - self.min_cost) * cost_const  # [0]
                             src_qubo.add(in_index, (reward_const * 0.5 + cost) * 0.75)
-                            # print('in - ', in_index, ' - ', (reward_const * 0.5 + cost) * 0.75)
                         else:
                             src_qubo.add(in_index, 0)
 
@@ -146,7 +144,6 @@ class CVRPTWProblem:
                     else:
                         cost = (costs[dest][source] - self.min_cost) * cost_const  # [0]
                         src_qubo.add(out_index, (reward_const * 0.5 + cost) * 0.75)
-                        # print('out - ', out_index, ' - ', (reward_const * 0.5 + cost) * 0.75)
 
                     for t2 in range(t, min(t + out_time, time_blocks_num - 1)):
                         # too fast
@@ -170,7 +167,6 @@ class CVRPTWProblem:
                     for t2 in range(t, time_blocks_num):
                         index = ((v, source, t), (v, d, t2))
                         src_qubo.add(index, penalty_const)
-        print(src_qubo.dict.values())
         return src_qubo
 
     def get_cvrptw_qubo(self,
@@ -190,16 +186,14 @@ class CVRPTWProblem:
             for (t1, t2) in combinations(range(time_blocks_num), 2):
                 if t1 + time_costs[d1][d2] == t2:
                     for i in range(vehicles_num):
-                        # going from (d1) to (d2) at the time (t) with vehicle (i)
-                        # nie wiem jak dobrze nazwać te stałe od order
-                        # zamieniłem tu kolejność d1 i d2 na intuicyjniejszą, nie wiem czy będzie dobrze działać
-                        # ale na moje powinno
+                        # going from (d1) to (d2) at the time (t1) with vehicle (i)
                         cost = (costs[d1][d2] - self.min_cost) * cost_const  # [t]
                         var2 = (i, d2, t2)  # [t]
                         var1 = (i, d1, t1)
-                        # print((d1, d2), ': droga: ', costs[d1][d2], ' cost: ', cost, ' qubo: ', (reward_const / dests_num + cost))
                         vrp_qubo.add((var1, var2), (reward_const / dests_num + cost))
-                        # nagroda za dobre odwiedzenie + kara za odległość
+                        # reward for visiting destination + cost of travel
+                        # parameters on edges are positive if t2 - t2 = time_cost[d1][d2]
+                        # zero if t2 - t2 > time_cost[d1][d2] and (penalty const) if t2 - t2 < time_cost[d1][d2]
 
                 else:
                     if d1 != d2:
@@ -240,25 +234,18 @@ class CVRPTWProblem:
                     var2 = (i2, d, t)
                     vrp_qubo.add((var1, var2), penalty_const)
 
+        print("src")
         src_qubo = self.get_sources_qubo(cost_const, penalty_const, reward_const / dests_num,
                                          time_windows_const / dests_num)
+        print("cap")
         cap_qubo = self.get_capacity_qubo(capacity_const)
+        print("tw")
         tw_qubo = self.get_time_windows_qubo(time_windows_const / dests_num, penalty_const)
-
+        print("merge")
         vrp_qubo.merge_with(src_qubo, 1, 1)
         vrp_qubo.merge_with(cap_qubo, 1, 1)
         vrp_qubo.merge_with(tw_qubo, 1, 1)
-
-        print('złooooo:', self.zero_edges)
-        '''for (a, c) in self.zero_edges:
-            dt = time_costs[a][c]
-            for t in range(time_blocks_num - dt - 1):
-                for v in range(vehicles_num):
-                    index = ((v, a, t), (v, c, t + dt))
-                    print('dupa: ', index)
-                    if vrp_qubo.dict[index] < 0.9 * penalty_const:
-                        vrp_qubo.set(index, 0)'''
-
+        print("bound")
         vrp_qubo.bound(-penalty_const, penalty_const)
 
         return vrp_qubo

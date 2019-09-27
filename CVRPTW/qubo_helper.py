@@ -4,7 +4,7 @@ from itertools import product
 class Qubo:
     def __init__(self):
         self.dict = dict()
-        #self.satisfied_energy = 0
+        # self.satisfied_energy = 0
 
     def create_field(self, field):
         self.dict[field] = 0
@@ -21,7 +21,7 @@ class Qubo:
         for field in product(variables, variables):
             self.create_not_exist_field(field)
             self.dict[field] += const
-        #self.satisfied_energy -= const
+        # self.satisfied_energy -= const
 
     def add_and_gate(self, x, y, z, const):
         self.add((x, y), const)
